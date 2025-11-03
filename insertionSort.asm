@@ -10,37 +10,12 @@ loop_print_before
 	beq zr,zr,loop_print_before
 end_print_before
 
-	; --- insertion sort start ---
-	add v0,zr,vet		; i = &vet + 2
-	add v1,zr,vet_lim	; end
-	add v2,zr,vet		; base pointer
-	add v3,zr,vet_lim	; limit pointer
-	add v0,v0,2		; skip first (i = 1)
+	add a0,zr,vet
+	add a1,zr,vet_lim
+	add lr,zr,RET1
+	beq zr,zr,insertionSort
 
-loop_i
-	bge v0,v1,endloop_i	; if i >= end → stop
-
-	ldw v4,v0		; key = *i
-	sub v5,v0,2		; j = i - 2a
-
-loop_j
-	blt v5,v2,endloop_j	; if j < start → stop inner
-	ldw v6,v5		; v6 = arr[j]
-	bge v6,v4,shift		; if arr[j] > key → shift
-	beq zr,zr,endloop_j
-
-shift
-	stw v6,v5,2		; arr[j+1] = arr[j]
-	sub v5,v5,2		; j--
-	beq zr,zr,loop_j
-
-endloop_j
-	stw v4,v5,2		; arr[j+1] = key
-	add v0,v0,2		; i++
-	beq zr,zr,loop_i
-
-endloop_i
-
+RET1
 	; --- print "After sorting" ---
 	add v0,zr,vet
 	add v1,zr,vet_lim
@@ -53,6 +28,37 @@ loop_print_after
 end_print_after
 
 	hlt
+
+insertionSort
+	add v0,a0,0		; base = start
+	add v1,a1,0		; end = end
+	add v2,v0,2		; i = base + 2
+
+loop_i
+	bge v2,v1,endloop_i	; if i >= end → stop
+
+	ldw v3,v2		; key = *i
+	sub v4,v2,2		; j = i - 2
+
+loop_j
+	blt v4,v0,endloop_j	; if j < start → stop inner
+	ldw v5,v4		; v5 = arr[j]
+	bge v5,v3,shift		; if arr[j] > key → shift
+	beq zr,zr,endloop_j
+
+shift
+	stw v5,v4,2		; arr[j+1] = arr[j]
+	sub v4,v4,2		; j--
+	beq zr,zr,loop_j
+
+endloop_j
+	stw v3,v4,2		; arr[j+1] = key
+	add v2,v2,2		; i++
+	beq zr,zr,loop_i
+
+endloop_i
+	beq zr,lr		; return
+
 
 ; --- data section ---
 vet
