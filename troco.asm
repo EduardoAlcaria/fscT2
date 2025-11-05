@@ -1,192 +1,103 @@
 ; ==========================================================
-; PROBLEMA 2 – TROCO (PUCRS TRM assembler-compatible)
-; r1 = R, r2 = ptr DISP, r3 = ptr USED
-; return r1 = 0 (success) or -1 (failure)
+; PROBLEMA 2 – TROCO
 ; ==========================================================
 
+; Inicialização dos ponteiros e variáveis de controle
+; Configuração dos registradores para manipulação dos vetores
 main
-	; ===== TEST 1 =====
-	add r1, r0, 137
-	add r2, r0, DISP1
-	add r3, r0, USED1
-	add r13, r0, RET1
-	beq r0, r0, troco
-RET1
-	stw r1, r0, 0xf000
-	bne r1, r0, NEXT2
-	add r5, r3, 0
-	add r6, r3, 10
-PRINT1
-	bge r5, r6, END_PRINT1
-	ldw r7, r5
-	stw r7, r0, 0xf000
-	add r5, r5, 2
-	beq r0, r0, PRINT1
-END_PRINT1
+	add a0, zr, valores		; a0 = &valores
+	add a1, zr, resultado		; a1 = &resultado
+	add v1, zr, 0			; v1 = indice
+	ldw a2, zr, quantia		; a2 = *quantia
+	ldw v2, zr, limite_vals		; v2 = *limite_vals
+	add a3, zr, disponiveis		; a3 = &disponiveis
+	add v3, zr, 0			; v3 = contador_usado
+	ldw v4, zr, tam_resultado	; v4 = tam_resultado
+	add v5, zr, 1			; v5 = constante_1
+	add lr, zr, processar		; lr = &processar
 
-NEXT2
-	; ===== TEST 2 =====
-	add r1, r0, 276
-	add r2, r0, DISP2
-	add r3, r0, USED2
-	add r13, r0, RET2
-	beq r0, r0, troco
-RET2
-	stw r1, r0, 0xf000
-	bne r1, r0, NEXT3
-	add r5, r3, 0
-	add r6, r3, 10
-PRINT2
-	bge r5, r6, END_PRINT2
-	ldw r7, r5
-	stw r7, r0, 0xf000
-	add r5, r5, 2
-	beq r0, r0, PRINT2
-END_PRINT2
+; Validação do valor atual contra a denominação disponível
+; Redireciona para próximo_valor se insuficiente
+; Verifica disponibilidade de cédulas antes de processar
+validacao
+	ldw v6, a0			; v6 = *a0
+	blt a2, v6, proximo_valor	; a2 < v6 -> proximo_valor
+	ldw v7, a3			; v7 = *a3
+	blt v7, v5, buscar_proximo	; v7 < v5 -> buscar_proximo
+	beq zr, lr			; chama processar
 
-NEXT3
-	; ===== TEST 3 =====
-	add r1, r0, 3
-	add r2, r0, DISP3
-	add r3, r0, USED3
-	add r13, r0, RET3
-	beq r0, r0, troco
-RET3
-	stw r1, r0, 0xf000
-	bne r1, r0, END_MAIN
-	add r5, r3, 0
-	add r6, r3, 10
-PRINT3
-	bge r5, r6, END_PRINT3
-	ldw r7, r5
-	stw r7, r0, 0xf000
-	add r5, r5, 2
-	beq r0, r0, PRINT3
-END_PRINT3
+; Avança para próxima denominação quando valor é muito grande
+; Verifica se atingiu o final das denominações
+; Atualiza ponteiros e continua validação ou retorna erro
+proximo_valor
+	add a0, a0, 2			; a0 = a0 + 2
+	add v1, v1, 1			; v1 = v1 + 1
+	blt v2, v1, erro_impossivel	; v2 < v1 -> erro_impossivel
+	add a3, a3, 2			; a3 = a3 + 2
+	ldw v6, a0			; v6 = *a0
+	blt a2, v6, proximo_valor	; a2 < v6 -> proximo_valor
+	ldw v7, a3			; v7 = *a3
+	blt v7, v5, buscar_proximo	; v7 < v5 -> buscar_proximo
 
-END_MAIN
-	hlt
+; Subtrai denominação do valor restante e registra uso
+; Decrementa quantidade disponível da denominação
+; Verifica conclusão ou continua processo
+processar
+	sub a2, v6			; a2 = a2 - v6
+	stw v6, a1			; &a1 = v6
+	sub v7, v7, 1			; v7 = v7 - 1
+	stw v7, a3			; &a3 = v7
+	add v3, v3, 1			; v3 = v3 + 1
+	add a1, a1, 2			; a1 = a1 + 2
+	beq a2, zr, preparar_saida	; a2 == 0 -> preparar_saida
+	beq zr, zr, validacao		; 0 == 0 -> validacao
 
-; ----------------------------------------------------------
-; troco
-; ----------------------------------------------------------
-troco
-	add r4, r0, 0       ; i byte-offset = 0 (0,2,4,6,8)
-	add r5, r0, 10      ; limit = 5 * 2 bytes
+; Procura próxima denominação com disponibilidade
+; Itera até encontrar ou chama processar
+buscar_proximo
+	add a0, a0, 2			; a0 = a0 + 2
+	add a3, a3, 2			; a3 = a3 + 2
+	ldw v7, a3			; v7 = *a3
+	blt v7, v5, buscar_proximo	; v7 < v5 -> buscar_proximo
+	ldw v6, a0			; v6 = *a0
+	beq zr, lr			; chama processar
 
-LOOP_NOTAS
-	bge r4, r5, END_LOOP
+; Exibe mensagem de erro quando não há solução
+erro_impossivel
+	ldw a0, zr, codigo_erro		; a0 = *codigo_erro
+	stw a0, zr, 0xf000		; printa -1
+	hlt				; encerra o programa
 
-	; r2 points to current DISP element
-	ldw r6, r2          ; r6 = DISP[i]
-	add r7, r0, 0       ; r7 = USED[i] (local counter = 0)
+; Prepara registradores para impressão dos resultados
+preparar_saida
+	add lr, zr, exibir		; lr = &exibir
+	add v0, zr, resultado		; v0 = &resultado
 
-	; pick note value (r8) based on r4 offset
-	beq r4, r0, VAL_100
-	add r9, r0, 2
-	beq r4, r9, VAL_50
-	add r9, r0, 4
-	beq r4, r9, VAL_10
-	add r9, r0, 6
-	beq r4, r9, VAL_5
-	add r9, r0, 8
-	beq r4, r9, VAL_1
-	; fallback (shouldn't happen)
-	add r8, r0, 1
-	beq r0, r0, CALC_NOTA
+; Iteração sobre resultados para exibição
+exibir
+	ldw v1, v0			; v1 = *v0
+	beq v1, zr, terminar		; v1 == 0 -> terminar
+	stw v1, zr, 0xf000		; printa *v1
+	add v0, v0, 2			; v0 = v0 + 2
+	beq zr, lr			; chama exibir
 
-VAL_100
-	add r8, r0, 100
-	beq r0, r0, CALC_NOTA
-VAL_50
-	add r8, r0, 50
-	beq r0, r0, CALC_NOTA
-VAL_10
-	add r8, r0, 10
-	beq r0, r0, CALC_NOTA
-VAL_5
-	add r8, r0, 5
-	beq r0, r0, CALC_NOTA
-VAL_1
-	add r8, r0, 1
-
-CALC_NOTA
-	; while (R >= r8 && r6 > 0)
-WHILE_USE
-	blt r1, r8, END_WHILE
-	beq r6, r0, END_WHILE
-
-	; subtract immediate based on r8 (branch to correct immediate)
-	add r9, r0, 100
-	beq r8, r9, SUB_100
-	add r9, r0, 50
-	beq r8, r9, SUB_50
-	add r9, r0, 10
-	beq r8, r9, SUB_10
-	add r9, r0, 5
-	beq r8, r9, SUB_5
-	add r9, r0, 1
-	beq r8, r9, SUB_1
-	beq r0, r0, END_WHILE
-
-SUB_100
-	add r1, r1, -100
-	beq r0, r0, AFTER_SUB
-SUB_50
-	add r1, r1, -50
-	beq r0, r0, AFTER_SUB
-SUB_10
-	add r1, r1, -10
-	beq r0, r0, AFTER_SUB
-SUB_5
-	add r1, r1, -5
-	beq r0, r0, AFTER_SUB
-SUB_1
-	add r1, r1, -1
-
-AFTER_SUB
-	sub r6, r6, 1
-	add r7, r7, 1
-	beq r0, r0, WHILE_USE
-
-END_WHILE
-	; store used and updated availability
-	stw r7, r3
-	stw r6, r2
-
-	; advance DISP and USED pointers (and offset)
-	add r2, r2, 2
-	add r3, r3, 2
-	add r4, r4, 2
-	beq r0, r0, LOOP_NOTAS
-
-END_LOOP
-	; if remainder is zero -> success, else fail
-	beq r1, r0, TROCO_OK
-	add r1, r0, -1
-	beq r0, r13
-
-TROCO_OK
-	add r1, r0, 0
-	beq r0, r13
-
-; ----------------------------------------------------------
-; DATA
-; ----------------------------------------------------------
-NOTAS
+; Finalização do programa
+terminar	
+	hlt				; encerra o programa
+	
+; Declaração de dados e constantes
+valores
 	100 50 10 5 1
-
-DISP1
+limite_vals
+	5
+disponiveis
 	2 1 3 1 10
-USED1
-	0 0 0 0 0
+resultado
+	0 0 0 0 0 0 0 0 0 0
+tam_resultado
+	10
+quantia
+	137
+codigo_erro
+	-1
 
-DISP2
-	1 0 30 0 0
-USED2
-	0 0 0 0 0
-
-DISP3
-	0 0 0 1 5
-USED3
-	0 0 0 0 0
